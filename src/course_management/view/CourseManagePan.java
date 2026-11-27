@@ -15,12 +15,26 @@ public class CourseManagePan extends JPanel {
     String[] tableHeader = {"강의ID", "스케줄ID", "강의명", "요일", "시작시간", "종료시간"};
     String[] dayNames = {"월", "화", "수", "목", "금", "토", "일"};
 
+    // 1~9교시 고정 시간 정의 (점심시간 5교시 제외)
+    String[] periodLabels = {
+            "1교시 (09:00~09:50)",
+            "2교시 (10:00~10:50)",
+            "3교시 (11:00~11:50)",
+            "4교시 (12:00~12:50)",
+            "6교시 (13:40~14:30)",
+            "7교시 (14:40~15:30)",
+            "8교시 (15:40~16:30)",
+            "9교시 (16:40~17:30)"
+    };
+    String[] startTimes = {"09:00", "10:00", "11:00", "12:00", "13:40", "14:40", "15:40", "16:40"};
+    String[] endTimes   = {"09:50", "10:50", "11:50", "12:50", "14:30", "15:30", "16:30", "17:30"};
+
     JTextField tfCourseId = new JTextField();
     JTextField tfScheduleId = new JTextField();
     JTextField tfCourseName = new JTextField();
     JComboBox<String> comboDay = new JComboBox<>(dayNames);
-    JTextField tfStartTime = new JTextField("09:00");
-    JTextField tfEndTime = new JTextField("11:00");
+    JComboBox<String> comboStartPeriod = new JComboBox<>(periodLabels);
+    JComboBox<String> comboEndPeriod = new JComboBox<>(periodLabels);
 
     JButton btnInsert = new JButton("강의 추가");
     JButton btnUpdate = new JButton("강의 수정");
@@ -38,8 +52,8 @@ public class CourseManagePan extends JPanel {
         panS.add(new JLabel("스케줄ID(자동):", JLabel.RIGHT)); panS.add(tfScheduleId);
         panS.add(new JLabel("강의명:", JLabel.RIGHT)); panS.add(tfCourseName);
         panS.add(new JLabel("요일:", JLabel.RIGHT)); panS.add(comboDay);
-        panS.add(new JLabel("시작시간(HH:mm):", JLabel.RIGHT)); panS.add(tfStartTime);
-        panS.add(new JLabel("종료시간(HH:mm):", JLabel.RIGHT)); panS.add(tfEndTime);
+        panS.add(new JLabel("시작 교시:", JLabel.RIGHT)); panS.add(comboStartPeriod);
+        panS.add(new JLabel("종료 교시:", JLabel.RIGHT)); panS.add(comboEndPeriod);
 
         panS.add(new JLabel(""));
         JPanel btnGroup = new JPanel(new FlowLayout());
@@ -79,15 +93,22 @@ public class CourseManagePan extends JPanel {
         }
     }
 
+    // 테이블 행 클릭 시 해당 시작/종료 시각에 맞는 교시 콤보박스 자동 선택
     public void setTextField(int rowIndex) {
         tfCourseId.setText(model.getValueAt(rowIndex, 0).toString());
         tfScheduleId.setText(model.getValueAt(rowIndex, 1).toString());
         tfCourseName.setText(model.getValueAt(rowIndex, 2).toString());
         comboDay.setSelectedItem(model.getValueAt(rowIndex, 3).toString());
-        tfStartTime.setText(model.getValueAt(rowIndex, 4).toString());
-        tfEndTime.setText(model.getValueAt(rowIndex, 5).toString());
+
+        String sTime = model.getValueAt(rowIndex, 4).toString();
+        String eTime = model.getValueAt(rowIndex, 5).toString();
+        for (int i = 0; i < startTimes.length; i++) {
+            if (startTimes[i].equals(sTime)) comboStartPeriod.setSelectedIndex(i);
+            if (endTimes[i].equals(eTime)) comboEndPeriod.setSelectedIndex(i);
+        }
     }
 
+    // 선택된 시작 교시의 시작시각 ~ 종료 교시의 종료시각을 추출
     public CourseSchedule getCourseSchedule() {
         CourseSchedule cs = new CourseSchedule();
         if (!tfCourseId.getText().isEmpty()) {
@@ -96,8 +117,14 @@ public class CourseManagePan extends JPanel {
         }
         cs.setCourse_name(tfCourseName.getText().trim());
         cs.setDay_of_week(new CourseRepository().toDayInt(comboDay.getSelectedItem().toString()));
-        cs.setStart_time(tfStartTime.getText().trim());
-        cs.setEnd_time(tfEndTime.getText().trim());
+
+        int startIdx = comboStartPeriod.getSelectedIndex();
+        int endIdx = comboEndPeriod.getSelectedIndex();
+        // 만약 종료 교시를 시작 교시보다 앞선 교시로 선택했다면 시작 교시와 동일하게 보정
+        if (endIdx < startIdx) endIdx = startIdx;
+
+        cs.setStart_time(startTimes[startIdx]);
+        cs.setEnd_time(endTimes[endIdx]);
         return cs;
     }
 

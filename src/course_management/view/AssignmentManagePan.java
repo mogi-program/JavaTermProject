@@ -17,6 +17,14 @@ public class AssignmentManagePan extends JPanel {
     String[] tableHeader = {"과제ID", "강의ID", "강의명", "시작일", "마감일", "과제내용", "상태"};
     String[] statusStr = {"INCOMPLETE", "COMPLETE"};
 
+    // 상단 과목별 필터 콤보박스
+    JComboBox<String> comboFilterCourse = new JComboBox<>();
+    ArrayList<CourseSchedule> allCourses = new ArrayList<>();
+
+    // 중앙 우측/하단 상세 내용 보기 영역
+    JTextArea taDetailView = new JTextArea(5, 30);
+
+    // 하단 등록/수정 입력 폼
     JTextField tfAssignId = new JTextField();
     JComboBox<CourseSchedule> comboCourse = new JComboBox<>();
     JTextField tfStartDate = new JTextField(LocalDate.now().toString());
@@ -31,9 +39,24 @@ public class AssignmentManagePan extends JPanel {
 
     public AssignmentManagePan() {
         assignmentList = new ArrayList<>();
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(5, 5));
         tfAssignId.setEditable(false);
 
+        // 상단 필터 바
+        JPanel panN = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panN.add(new JLabel("  과목별 모아보기: "));
+        comboFilterCourse.addItem("전체 과목 보기");
+        panN.add(comboFilterCourse);
+        add(panN, BorderLayout.NORTH);
+
+        // 상세 내용 영역 설정
+        taDetailView.setEditable(false);
+        taDetailView.setLineWrap(true);
+        taDetailView.setWrapStyleWord(true);
+        taDetailView.setFont(new Font("Malgun Gothic", Font.PLAIN, 13));
+        taDetailView.setText("과제를 선택하면 상세 내용이 표시됩니다.");
+
+        // 하단 입력 폼
         panS.add(new JLabel("과제ID(자동):", JLabel.RIGHT)); panS.add(tfAssignId);
         panS.add(new JLabel("강의 선택:", JLabel.RIGHT)); panS.add(comboCourse);
         panS.add(new JLabel("시작일(YYYY-MM-DD):", JLabel.RIGHT)); panS.add(tfStartDate);
@@ -58,11 +81,18 @@ public class AssignmentManagePan extends JPanel {
         };
 
         table = new JTable(model);
-        JScrollPane scroll = new JScrollPane(table);
+        JScrollPane tableScroll = new JScrollPane(table);
+
+        JScrollPane detailScroll = new JScrollPane(taDetailView);
+        detailScroll.setBorder(BorderFactory.createTitledBorder("선택한 과제 상세 내용"));
+
+        JSplitPane centerSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tableScroll, detailScroll);
+        centerSplit.setDividerLocation(220);
+
         putSearchResult();
 
-        add(scroll, "Center");
-        add(panS, "South");
+        add(centerSplit, BorderLayout.CENTER);
+        add(panS, BorderLayout.SOUTH);
     }
 
     public void putSearchResult() {
@@ -80,10 +110,18 @@ public class AssignmentManagePan extends JPanel {
     }
 
     public void setCourseCombo(ArrayList<CourseSchedule> courses) {
+        this.allCourses = courses;
+        Object prevFilter = comboFilterCourse.getSelectedItem();
+
         comboCourse.removeAllItems();
+        comboFilterCourse.removeAllItems();
+        comboFilterCourse.addItem("전체 과목 보기");
+
         for (CourseSchedule cs : courses) {
             comboCourse.addItem(cs);
+            comboFilterCourse.addItem(cs.getCourse_id() + " : " + cs.getCourse_name());
         }
+        if (prevFilter != null) comboFilterCourse.setSelectedItem(prevFilter);
     }
 
     public void setTextField(int rowIndex) {
@@ -95,10 +133,30 @@ public class AssignmentManagePan extends JPanel {
                 break;
             }
         }
-        tfStartDate.setText(model.getValueAt(rowIndex, 3).toString());
-        tfDueDate.setText(model.getValueAt(rowIndex, 4).toString());
-        tfContent.setText(model.getValueAt(rowIndex, 5).toString());
-        comboStatus.setSelectedItem(model.getValueAt(rowIndex, 6).toString());
+        String courseName = model.getValueAt(rowIndex, 2).toString();
+        String sDate = model.getValueAt(rowIndex, 3).toString();
+        String dDate = model.getValueAt(rowIndex, 4).toString();
+        String content = model.getValueAt(rowIndex, 5).toString();
+        String status = model.getValueAt(rowIndex, 6).toString();
+
+        tfStartDate.setText(sDate);
+        tfDueDate.setText(dDate);
+        tfContent.setText(content);
+        comboStatus.setSelectedItem(status);
+
+        // 상세 내용 영역 업데이트
+        taDetailView.setText(
+                "[" + courseName + "]  기간: " + sDate + " ~ " + dDate + "  |  상태: " + status + "\n" +
+                        "----------------------------------------------------------------------\n" +
+                        content
+        );
+    }
+
+    // 현재 필터에서 선택된 course_id 반환 (전체 보기면 null)
+    public Integer getSelectedFilterCourseId() {
+        int idx = comboFilterCourse.getSelectedIndex();
+        if (idx <= 0 || idx - 1 >= allCourses.size()) return null;
+        return allCourses.get(idx - 1).getCourse_id();
     }
 
     public Assignment getAssignment() {
@@ -118,6 +176,7 @@ public class AssignmentManagePan extends JPanel {
     }
 
     public void setAssignmentList(ArrayList<Assignment> assignmentList) { this.assignmentList = assignmentList; }
+    public JComboBox<String> getComboFilterCourse() { return comboFilterCourse; }
     public JButton getBtnInsert() { return btnInsert; }
     public JButton getBtnUpdate() { return btnUpdate; }
     public JButton getBtnDelete() { return btnDelete; }

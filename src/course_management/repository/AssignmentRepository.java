@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class AssignmentRepository {
     ArrayList<Assignment> assignmentList;
 
-    // 전체 또는 미완료 과제 조회 (onlyIncomplete가 true면 미완료만 조회)
+    // 전체 또는 미완료 과제 조회
     public ArrayList<Assignment> select(boolean onlyIncomplete) {
         assignmentList = new ArrayList<>();
         Connection con = JDBCConnector.getConnection();
@@ -26,15 +26,7 @@ public class AssignmentRepository {
             pstmt = con.prepareStatement(sql);
             rs = pstmt.executeQuery();
             while (rs.next()) {
-                Assignment a = new Assignment();
-                a.setAssignment_id(rs.getInt("assignment_id"));
-                a.setCourse_id(rs.getInt("course_id"));
-                a.setCourse_name(rs.getString("course_name"));
-                a.setStart_date(rs.getDate("start_date"));
-                a.setDue_date(rs.getDate("due_date"));
-                a.setContent(rs.getString("content"));
-                a.setStatus(rs.getString("status"));
-                assignmentList.add(a);
+                assignmentList.add(mapRow(rs));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -44,7 +36,45 @@ public class AssignmentRepository {
         return assignmentList;
     }
 
-    // 과제 등록
+    // [신규 추가] 특정 과목(course_id)의 과제만 모아서 조회
+    public ArrayList<Assignment> selectByCourseId(int courseId) {
+        assignmentList = new ArrayList<>();
+        Connection con = JDBCConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        String sql = "SELECT a.assignment_id, a.course_id, c.course_name, a.start_date, a.due_date, a.content, a.status " +
+                "FROM ASSIGNMENT a, COURSE c " +
+                "WHERE a.course_id = c.course_id AND a.course_id = ? " +
+                "ORDER BY a.due_date ASC";
+
+        try {
+            pstmt = con.prepareStatement(sql);
+            pstmt.setInt(1, courseId);
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                assignmentList.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, pstmt, con);
+        }
+        return assignmentList;
+    }
+
+    private Assignment mapRow(ResultSet rs) throws SQLException {
+        Assignment a = new Assignment();
+        a.setAssignment_id(rs.getInt("assignment_id"));
+        a.setCourse_id(rs.getInt("course_id"));
+        a.setCourse_name(rs.getString("course_name"));
+        a.setStart_date(rs.getDate("start_date"));
+        a.setDue_date(rs.getDate("due_date"));
+        a.setContent(rs.getString("content"));
+        a.setStatus(rs.getString("status"));
+        return a;
+    }
+
     public void insert(Assignment a) {
         Connection con = JDBCConnector.getConnection();
         PreparedStatement pstmt = null;
@@ -64,7 +94,6 @@ public class AssignmentRepository {
         }
     }
 
-    // 과제 수정 (기간, 내용, 상태)
     public void update(Assignment a) {
         Connection con = JDBCConnector.getConnection();
         PreparedStatement pstmt = null;
@@ -85,7 +114,6 @@ public class AssignmentRepository {
         }
     }
 
-    // 과제 삭제
     public void delete(int assignmentId) {
         Connection con = JDBCConnector.getConnection();
         PreparedStatement pstmt = null;
